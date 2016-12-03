@@ -71,6 +71,11 @@ public class ItemNBTUtil {
      */
     public static NBTTagCompound getTag(ItemStack itemStack) {
         Object nmsItem = asNMSCopy(itemStack);
+
+        if (nmsItem == null) {
+            throw new NullPointerException("Unable to find a nms item clone for " + itemStack);
+        }
+
         Object tag = ReflectionUtil.invokeMethod(nmsItem.getClass(), new MethodPredicate()
                   .withName("getTag"), nmsItem).getValue();
         if (tag == null) {
