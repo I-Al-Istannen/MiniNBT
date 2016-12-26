@@ -24,6 +24,8 @@ It can be used to change the name of a furnace/chest or similiar after it was pl
 
 *Custom tags are never set and therefore impossible.*
 
+### NBT parser
+This allows you to parse a String to a NBTTagCompound. It uses the `MojangsonParser` internally, but you will need to use the `NbtParser` class.
 
 ## Usage
 Quite easy. I have _nearly_ exactly recreated the original NBT classes, so you can use it in the same way you would use the original.  
