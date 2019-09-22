@@ -26,7 +26,6 @@ import org.bukkit.block.BlockState;
  * Doesn't allow for the addition of new tags. You can modify the tags of the TileEntity, but not
  * add new ones. This is a limitation of minecraft.
  */
-@SuppressWarnings("unused")
 public class TileEntityNBTUtil {
 
     private static Method loadFromNBT, saveToNBT, getTileEntity;
@@ -159,7 +158,6 @@ public class TileEntityNBTUtil {
      * @throws IllegalStateException If an unrepairable error occurred earlier (probably version
      *     incompatibility).
      */
-    @SuppressWarnings("WeakerAccess")   // others may want to call that...
     public static boolean isValidClass(BlockState blockState) {
         ensureNoError();
         // no NPE will be thrown.
