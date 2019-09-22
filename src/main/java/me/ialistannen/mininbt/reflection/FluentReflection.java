@@ -13,6 +13,12 @@ import me.ialistannen.mininbt.reflection.seeking.ConstructorSeeker;
 import me.ialistannen.mininbt.reflection.seeking.FieldSeeker;
 import me.ialistannen.mininbt.reflection.seeking.MethodSeeker;
 
+/**
+ * A fluent reflection helper.
+ *
+ * @param <T> the type of the class
+ */
+@SuppressWarnings("TypeParameterExtendsFinalClass")
 public abstract class FluentReflection<T extends FluentReflection<T>> {
 
   /**
@@ -77,6 +83,19 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
      */
     public ConstructorSeeker<C> findConstructor() {
       return new ConstructorSeeker<>(underlying);
+    }
+
+    /**
+     * Creates a new fluent type for an unknown class.
+     *
+     * @param clazz the class
+     * @param <C> the type of it, inferred to be whatever
+     * @return the fluent type for it
+     */
+    public static <C extends Class<C>> FluentType<C> ofUnknown(Class<?> clazz) {
+      @SuppressWarnings("unchecked")
+      C c = (C) clazz;
+      return new FluentType<>(c);
     }
 
     @Override
