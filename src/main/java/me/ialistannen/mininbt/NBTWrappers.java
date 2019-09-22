@@ -1,24 +1,15 @@
 package me.ialistannen.mininbt;
 
-import static me.ialistannen.mininbt.ReflectionUtil.NameSpace.NMS;
+import me.ialistannen.mininbt.ReflectionUtil.MethodPredicate;
+import me.ialistannen.mininbt.ReflectionUtil.ReflectResponse;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.function.BiConsumer;
 
-import me.ialistannen.mininbt.ReflectionUtil.MethodPredicate;
-import me.ialistannen.mininbt.ReflectionUtil.ReflectResponse;
+import static me.ialistannen.mininbt.ReflectionUtil.NameSpace.NMS;
 
 /**
  * Provides wrapper objects to abstract the NBT versions. Probably way too
@@ -405,7 +396,12 @@ public class NBTWrappers {
                       .withName("set")
                       .withParameters(String.class, nbtBase.get()));
             for (Map.Entry<String, INBTBase> entry : map.entrySet()) {
-                ReflectionUtil.invokeMethod(setMethod.getValue(), compound, entry.getKey(), entry.getValue().toNBT());
+                ReflectResponse<Object> result = ReflectionUtil.invokeMethod(
+                        setMethod.getValue(), compound, entry.getKey(), entry.getValue().toNBT()
+                );
+                if (!result.isSuccessful()) {
+                    result.getException().printStackTrace();
+                }
             }
 
             return compound;
@@ -473,10 +469,52 @@ public class NBTWrappers {
      * A NBTTagList.
      */
     public static class NBTTagList extends INBTBase {
-        private static final Constructor<?> NBT_TAG_LIST_CONSTRUCTOR = ReflectionUtil
-                  .getConstructor(
-                            ReflectionUtil.getClass(NMS, "NBTTagList").get())
-                  .getValue();
+        private static final Constructor<?> NBT_TAG_LIST_CONSTRUCTOR;
+        private static final BiConsumer<List<INBTBase>, Object> appendAll;
+
+        static {
+            Class<?> nbtTagList = ReflectionUtil.getClass(NMS, "NBTTagList").get();
+            NBT_TAG_LIST_CONSTRUCTOR = ReflectionUtil
+                    .getConstructor(nbtTagList)
+                    .getValue();
+
+            Optional<Class<?>> nbtBase = ReflectionUtil.getClass(NMS, "NBTBase");
+            if (!nbtBase.isPresent()) {
+                throw new RuntimeException("Can't find NBTBase class from NBTTagList toNBT");
+            }
+
+            // Up to 1.14.4 it was "add(NBTBase)"
+            ReflectResponse<Method> addSingleParam = ReflectionUtil.getMethod(
+                    nbtTagList,
+                    new MethodPredicate()
+                            .withName("add")
+                            .withParameters(nbtBase.get())
+            );
+            if (addSingleParam.isValuePresent()) {
+                appendAll = (tags, nbtList) -> {
+                    for (INBTBase tag : tags) {
+                        ReflectionUtil.invokeMethod(addSingleParam.getValue(), nbtList, tag.toNBT());
+                    }
+                };
+            } else {
+                // In 1.14.4 it is "add(int index, NBTBase)"
+                ReflectResponse<Method> addMultiParam = ReflectionUtil.getMethod(
+                        nbtTagList,
+                        new MethodPredicate()
+                                .withName("add")
+                                .withParameters(int.class, nbtBase.get())
+                );
+                if (!addMultiParam.isValuePresent()) {
+                    throw new RuntimeException("Error fetching NBTTagList add method");
+                }
+                appendAll = (tags, nbtList) -> {
+                    for (int i = 0; i < tags.size(); i++) {
+                        INBTBase tag = tags.get(i);
+                        ReflectionUtil.invokeMethod(addMultiParam.getValue(), nbtList, i, tag.toNBT());
+                    }
+                };
+            }
+        }
 
         private final List<INBTBase> list = new ArrayList<>();
 
@@ -557,19 +595,9 @@ public class NBTWrappers {
         @Override
         public Object toNBT() {
             Object nbtList = ReflectionUtil.instantiate(NBT_TAG_LIST_CONSTRUCTOR).getValue();
-            Optional<Class<?>> nbtBase = ReflectionUtil.getClass(NMS, "NBTBase");
-            if (!nbtBase.isPresent()) {
-                System.out.println("Can't find NBTBase class from NBTTagList toNBT");
-                return null;
-            }
 
-            for (INBTBase inbtBase : list) {
-                ReflectionUtil.invokeMethod(nbtList.getClass(),
-                          new MethodPredicate()
-                                    .withName("add")
-                                    .withParameters(nbtBase.get()),
-                          nbtList, inbtBase.toNBT());
-            }
+            appendAll.accept(list, nbtList);
+
             return nbtList;
         }
 
