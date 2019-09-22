@@ -27,15 +27,15 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
    */
   public static class FluentType<C extends Class<C>> extends FluentReflection<FluentType<C>> {
 
-    private C myClass;
+    private C underlying;
 
     /**
      * Creates a new fluent type for a given class.
      *
-     * @param myClass the class to create it for
+     * @param underlying the class to create it for
      */
-    public FluentType(C myClass) {
-      this.myClass = myClass;
+    public FluentType(C underlying) {
+      this.underlying = underlying;
     }
 
     @Override
@@ -44,12 +44,21 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
     }
 
     /**
+     * Returns the underlying class.
+     *
+     * @return the underlying class
+     */
+    public C getUnderlying() {
+      return underlying;
+    }
+
+    /**
      * Finds a field in the class.
      *
      * @return a field seeker
      */
     public FieldSeeker<C> findField() {
-      return new FieldSeeker<>(myClass);
+      return new FieldSeeker<>(underlying);
     }
 
     /**
@@ -58,7 +67,7 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
      * @return a method seeker
      */
     public MethodSeeker<C> findMethod() {
-      return new MethodSeeker<>(myClass);
+      return new MethodSeeker<>(underlying);
     }
 
     /**
@@ -67,7 +76,7 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
      * @return a method seeker
      */
     public ConstructorSeeker<C> findConstructor() {
-      return new ConstructorSeeker<>(myClass);
+      return new ConstructorSeeker<>(underlying);
     }
 
     @Override
@@ -79,12 +88,12 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
         return false;
       }
       FluentType<?> that = (FluentType<?>) o;
-      return Objects.equals(myClass, that.myClass);
+      return Objects.equals(underlying, that.underlying);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(myClass);
+      return Objects.hash(underlying);
     }
   }
 

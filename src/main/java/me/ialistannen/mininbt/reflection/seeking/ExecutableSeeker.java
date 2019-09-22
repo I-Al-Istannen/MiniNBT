@@ -74,6 +74,40 @@ public abstract class ExecutableSeeker<C extends Class<C>, T extends ExecutableS
   }
 
   /**
+   * Searches for a method with the given {@link java.lang.reflect.Modifier}s.
+   *
+   * @param modifiers the modifiers
+   * @return this seeker
+   */
+  public T withModifiers(int... modifiers) {
+    return matching(executable -> {
+      for (int modifier : modifiers) {
+        if ((executable.getModifiers() & modifier) == 0) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Searches for a method with the given {@link java.lang.reflect.Modifier}s.
+   *
+   * @param modifiers the modifiers
+   * @return this seeker
+   */
+  public T withoutModifiers(int... modifiers) {
+    return matching(executable -> {
+      for (int modifier : modifiers) {
+        if ((executable.getModifiers() & modifier) != 0) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  /**
    * Searches for a method matching the given predicate.
    *
    * @param predicate the predicate
