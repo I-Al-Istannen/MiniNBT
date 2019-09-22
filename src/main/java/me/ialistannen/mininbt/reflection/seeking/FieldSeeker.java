@@ -3,7 +3,9 @@ package me.ialistannen.mininbt.reflection.seeking;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentField;
@@ -86,7 +88,7 @@ public class FieldSeeker<C extends Class<C>> implements ElementSeeker<FluentFiel
 
   @Override
   public ReflectiveResult<List<FluentField>> findAll() {
-    List<FluentField> fields = new ArrayList<>(findInClass(clazz));
+    Set<FluentField> fields = new HashSet<>(findInClass(clazz));
 
     if (walkHierarchy) {
       Class<?> currentClass = clazz.getSuperclass();
@@ -101,19 +103,19 @@ public class FieldSeeker<C extends Class<C>> implements ElementSeeker<FluentFiel
       return ReflectiveResult.failure(new ReflectionException("Field not found"));
     }
 
-    return ReflectiveResult.success(fields);
+    return ReflectiveResult.success(new ArrayList<>(fields));
   }
 
-  private List<FluentField> findInClass(Class<?> clazz) {
-    List<FluentField> fields = findInFields(clazz.getFields());
+  private Set<FluentField> findInClass(Class<?> clazz) {
+    Set<FluentField> fields = findInFields(clazz.getFields());
     fields.addAll(findInFields(clazz.getDeclaredFields()));
     return fields;
   }
 
-  private List<FluentField> findInFields(Field[] fields) {
+  private Set<FluentField> findInFields(Field[] fields) {
     return Arrays.stream(fields)
         .filter(field -> filters.stream().allMatch(it -> it.test(field)))
         .map(FluentField::new)
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
   }
 }

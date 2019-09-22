@@ -4,6 +4,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentConstructor;
@@ -48,16 +49,16 @@ public class ConstructorSeeker<C extends Class<C>> extends
 
   @Override
   public ReflectiveResult<List<FluentConstructor<C>>> findAll() {
-    List<FluentConstructor<C>> methods = findInConstructors(clazz.getConstructors());
+    Set<FluentConstructor<C>> methods = findInConstructors(clazz.getConstructors());
     methods.addAll(findInConstructors(clazz.getDeclaredConstructors()));
 
     if (methods.isEmpty()) {
       return ReflectiveResult.failure(new ReflectionException("No constructor found"));
     }
-    return ReflectiveResult.success(methods);
+    return ReflectiveResult.success(new ArrayList<>(methods));
   }
 
-  private List<FluentConstructor<C>> findInConstructors(Constructor<?>[] constructors) {
+  private Set<FluentConstructor<C>> findInConstructors(Constructor<?>[] constructors) {
     return Arrays.stream(constructors)
         .map(it -> {
           @SuppressWarnings("unchecked")
@@ -67,6 +68,6 @@ public class ConstructorSeeker<C extends Class<C>> extends
         .filter(constructor -> filters.stream().allMatch(it -> it.test(constructor)))
         .filter(super::matches)
         .map(FluentConstructor::new)
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
   }
 }

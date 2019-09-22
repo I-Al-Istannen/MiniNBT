@@ -16,7 +16,7 @@ public class BukkitReflection {
 
   static {
     String name = Bukkit.getServer() == null
-        ? "org.bukkit.craftbukkit.v1_10_R1"
+        ? "org.bukkit.craftbukkit.v1_14_R1"
         : Bukkit.getServer().getClass().getPackage().getName();
     String[] split = name.split("\\.");
     name = split[split.length - 1];

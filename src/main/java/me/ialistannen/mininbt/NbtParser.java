@@ -1,57 +1,26 @@
 package me.ialistannen.mininbt;
 
-import static me.ialistannen.mininbt.ReflectionUtil.NameSpace.NMS;
-
-import java.lang.reflect.Method;
-import java.util.Optional;
+import java.lang.reflect.InvocationTargetException;
 import me.ialistannen.mininbt.NBTWrappers.INBTBase;
 import me.ialistannen.mininbt.NBTWrappers.NBTTagCompound;
-import me.ialistannen.mininbt.ReflectionUtil.MethodPredicate;
-import me.ialistannen.mininbt.ReflectionUtil.ReflectResponse;
-import me.ialistannen.mininbt.ReflectionUtil.ReflectResponse.ResultType;
-import org.bukkit.Bukkit;
+import me.ialistannen.mininbt.reflection.BukkitReflection.ClassLookup;
+import me.ialistannen.mininbt.reflection.FluentReflection.FluentMethod;
+import me.ialistannen.mininbt.reflection.FluentReflection.ReflectiveResult;
 
 /**
  * A wrapper for the MojangsonParser used for parsing NBT
  */
-@SuppressWarnings("unused")
 public class NbtParser {
 
-  private static final Method PARSE_METHOD;
-  private static boolean error = false;
+  private static final FluentMethod PARSE_METHOD;
 
   static {
-    Optional<Class<?>> mojangsonParserClass = ReflectionUtil.getClass(NMS, "MojangsonParser");
-
-    if (!mojangsonParserClass.isPresent()) {
-      System.out.println("Can't find the class MojangsonParser: "
-          + Bukkit.getServer().getClass().getName());
-      error = true;
-      PARSE_METHOD = null;
-    } else {
-      ReflectResponse<Method> parseMethod = ReflectionUtil.getMethod(mojangsonParserClass.get(),
-          new MethodPredicate()
-              .withName("parse")
-              .withParameters(String.class));
-
-      if (parseMethod.isValuePresent()) {
-        PARSE_METHOD = parseMethod.getValue();
-      } else {
-        System.out.println("Can't find MojangsonParser's parse method: "
-            + mojangsonParserClass.get().getName());
-        error = true;
-        PARSE_METHOD = null;
-      }
-    }
-  }
-
-  /**
-   * @throws IllegalStateException If {@link #error} is true
-   */
-  private static void ensureNoError() {
-    if (error) {
-      throw new IllegalStateException("A critical, non recoverable error occurred earlier.");
-    }
+    PARSE_METHOD = ClassLookup.NMS.forName("MojangsonParser").getOrThrow()
+        .findMethod()
+        .withName("parse")
+        .withParameters(String.class)
+        .findSingle()
+        .getOrThrow();
   }
 
   /**
@@ -62,26 +31,24 @@ public class NbtParser {
    * @throws NbtParseException if an error occurred while parsing the NBT tag
    */
   public static NBTTagCompound parse(String nbt) throws NbtParseException {
-    ensureNoError();
-
-    ReflectResponse<Object> response = ReflectionUtil.invokeMethod(PARSE_METHOD, null, nbt);
-
-    if (!response.isSuccessful()) {
-      if (response.getResultType() == ResultType.ERROR) {
-        throw new NbtParseException(response.getException().getCause().getMessage(),
-            response.getException().getCause());
-      }
+    ReflectiveResult<Object> result = PARSE_METHOD.invokeStatic(nbt);
+    if (result.isPresent()) {
+      return (NBTTagCompound) INBTBase.fromNBT(result.getOrThrow());
+    }
+    Throwable underlyingException = result.getError();
+    if (!(underlyingException instanceof InvocationTargetException)) {
+      throw new NbtParseException("Unknown error", null);
     }
 
-    // is defined by the method and the only one making sense
-    return (NBTTagCompound) INBTBase.fromNBT(response.getValue());
+    throw new NbtParseException(
+        underlyingException.getCause().getMessage(),
+        underlyingException.getCause()
+    );
   }
 
   /**
    * An exception occurred while parsing a NBT tag. Checked.
    */
-  @SuppressWarnings("WeakerAccess") // other classes outside need to access
-  // it.
   public static class NbtParseException extends Exception {
 
     /**

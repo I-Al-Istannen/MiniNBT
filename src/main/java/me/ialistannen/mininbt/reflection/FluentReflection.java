@@ -6,6 +6,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import me.ialistannen.mininbt.reflection.seeking.ConstructorSeeker;
@@ -68,6 +69,23 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
     public ConstructorSeeker<C> findConstructor() {
       return new ConstructorSeeker<>(myClass);
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FluentType<?> that = (FluentType<?>) o;
+      return Objects.equals(myClass, that.myClass);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(myClass);
+    }
   }
 
   /**
@@ -115,6 +133,23 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
     public Executable getUnderlying() {
       return underlying;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FluentInvokable<?> that = (FluentInvokable<?>) o;
+      return Objects.equals(underlying, that.underlying);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(underlying);
+    }
   }
 
   /**
@@ -159,6 +194,34 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
         return r;
       });
     }
+
+    /**
+     * Invokes this executable as a static method.
+     *
+     * @param arguments the arguments
+     * @param <R> the return type
+     * @return the return value
+     */
+    public <R> ReflectiveResult<R> invokeStatic(Object... arguments) {
+      return invoke(null, arguments);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FluentMethod that = (FluentMethod) o;
+      return Objects.equals(getUnderlying(), that.getUnderlying());
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getUnderlying());
+    }
   }
 
   /**
@@ -199,6 +262,23 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
         underlying.setAccessible(true);
         return underlying.newInstance(arguments);
       });
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FluentConstructor<?> that = (FluentConstructor<?>) o;
+      return Objects.equals(getUnderlying(), that.getUnderlying());
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getUnderlying());
     }
   }
 
@@ -272,6 +352,23 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
     public <T> ReflectiveResult<T> getStaticValue() {
       return getValue(null);
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FluentField that = (FluentField) o;
+      return Objects.equals(underlying, that.underlying);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(underlying);
+    }
   }
 
 
@@ -305,6 +402,15 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
     public T getOrThrow() {
       ensureSuccessful();
       return value;
+    }
+
+    /**
+     * Returns the error or null.
+     *
+     * @return the error or null
+     */
+    public Throwable getError() {
+      return error;
     }
 
     /**
@@ -382,6 +488,24 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
         return success(mapper.apply(value));
       }
       return failure(error);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ReflectiveResult<?> that = (ReflectiveResult<?>) o;
+      return Objects.equals(value, that.value) &&
+          Objects.equals(error, that.error);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(value, error);
     }
 
     /**
