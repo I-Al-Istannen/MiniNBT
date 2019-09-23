@@ -18,8 +18,7 @@ import me.ialistannen.mininbt.reflection.ReflectionException;
  *
  * @param <C> the class the field is in
  */
-@SuppressWarnings("TypeParameterExtendsFinalClass") // Class has a recursive type param
-public class FieldSeeker<C extends Class<C>> implements ElementSeeker<FluentField> {
+public class FieldSeeker<C> implements ElementSeeker<FluentField> {
 
   private List<Predicate<Field>> filters;
   private Class<C> clazz;

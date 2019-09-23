@@ -31,16 +31,16 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
   /**
    * A fluent type.
    */
-  public static class FluentType<C extends Class<C>> extends FluentReflection<FluentType<C>> {
+  public static class FluentType<C> extends FluentReflection<FluentType<C>> {
 
-    private C underlying;
+    private Class<C> underlying;
 
     /**
      * Creates a new fluent type for a given class.
      *
      * @param underlying the class to create it for
      */
-    public FluentType(C underlying) {
+    public FluentType(Class<C> underlying) {
       this.underlying = underlying;
     }
 
@@ -54,7 +54,7 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
      *
      * @return the underlying class
      */
-    public C getUnderlying() {
+    public Class<C> getUnderlying() {
       return underlying;
     }
 

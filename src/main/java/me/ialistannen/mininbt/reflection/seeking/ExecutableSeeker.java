@@ -11,7 +11,7 @@ import java.util.function.Predicate;
  *
  * @param <C> the type of the class
  */
-public abstract class ExecutableSeeker<C extends Class<C>, T extends ExecutableSeeker<C, T>> {
+public abstract class ExecutableSeeker<C, T extends ExecutableSeeker<C, T>> {
 
   protected Class<C> clazz;
   private List<Predicate<Executable>> filters;
