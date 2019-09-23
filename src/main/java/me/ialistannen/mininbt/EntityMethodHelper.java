@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import me.ialistannen.mininbt.NBTWrappers.INBTBase;
 import me.ialistannen.mininbt.NBTWrappers.NBTTagCompound;
+import me.ialistannen.mininbt.reflection.BukkitReflection;
 import me.ialistannen.mininbt.reflection.BukkitReflection.ClassLookup;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentMethod;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
@@ -36,10 +37,20 @@ public class EntityMethodHelper {
     }
   }
 
+  /**
+   * Returns the NBT load method (which stores the data on the entity)
+   *
+   * @return the NBT load method
+   */
   public FluentMethod getLoadFromNbtMethod() {
     return loadFromNbtMethod;
   }
 
+  /**
+   * Returns the NBT save method (which retrieves the data from the entity)
+   *
+   * @return the NBT save method
+   */
   public FluentMethod getSaveToNbtMethod() {
     return saveToNbtMethod;
   }
@@ -52,7 +63,7 @@ public class EntityMethodHelper {
     Object nmsSample = entitySpawner.spawn();
 
     try {
-      if (ReflectionUtil.getMajorVersion() > 1 || ReflectionUtil.getMinorVersion() > 8) {
+      if (BukkitReflection.getMajorVersion() > 1 || BukkitReflection.getMinorVersion() > 8) {
         initializeHigherThan1_9(nmsSample);
       } else {
         initializeLowerThan1_9(nmsSample);
