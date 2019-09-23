@@ -1,17 +1,15 @@
 package me.ialistannen.mininbt;
 
-import java.lang.reflect.Modifier;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
+import me.ialistannen.mininbt.EntityMethodHelper.DeletableEntitySpawner;
 import me.ialistannen.mininbt.NBTWrappers.INBTBase;
 import me.ialistannen.mininbt.NBTWrappers.NBTTagCompound;
 import me.ialistannen.mininbt.reflection.BukkitReflection.ClassLookup;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentMethod;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
-import me.ialistannen.mininbt.reflection.ReflectionException;
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 
@@ -27,7 +25,6 @@ import org.bukkit.entity.EntityType;
  * Doesn't allow for the addition of new tags. You can modify the tags of the TileEntity, but not
  * add new ones. This is a limitation of minecraft.
  */
-@SuppressWarnings("unused") // just by me...
 public class EntityNBTUtil {
 
   private static FluentMethod loadFromNbtMethod, saveToNbtMethod, getHandle;
@@ -40,35 +37,36 @@ public class EntityNBTUtil {
         .findSingle()
         .getOrThrow();
 
-    initializeLoadingMethods();
+    EntityMethodHelper entityHelper = new EntityMethodHelper(
+        new DeletableEntitySpawner() {
 
-    if (loadFromNbtMethod == null || saveToNbtMethod == null) {
-      throw new ReflectionException(
-          "Load or save method not found: L|" + loadFromNbtMethod + " -> S|" + saveToNbtMethod
-      );
-    }
-  }
+          private Entity sample;
 
-  private static void initializeLoadingMethods() {
-    if (Bukkit.getWorlds().isEmpty()) {
-      throw new IllegalStateException("Called me before at least one world was loaded...");
-    }
-    Entity sample = Bukkit.getWorlds().get(0)
-        .spawnEntity(Bukkit.getWorlds().get(0).getSpawnLocation(), EntityType.ARMOR_STAND);
+          @Override
+          public Object spawn() {
+            if (Bukkit.getWorlds().isEmpty()) {
+              throw new IllegalStateException("Called me before at least one world was loaded...");
+            }
+            World world = Bukkit.getWorlds().get(0);
+            sample = world.spawnEntity(world.getSpawnLocation(), EntityType.ARMOR_STAND);
 
-    Object nmsSample = getHandle.invoke(sample).getOrThrow();
+            return getHandle.invoke(sample).getOrThrow();
+          }
 
-    try {
-      FluentType<?> entityClass = ClassLookup.NMS.forName("Entity").getOrThrow();
-      if (ReflectionUtil.getMajorVersion() > 1 || ReflectionUtil.getMinorVersion() > 8) {
-        initializeHigherThan1_9(entityClass, sample, nmsSample);
-      } else {
-        initializeLowerThan1_9(entityClass, sample, nmsSample);
-      }
-    } finally {
-      // kill it again, we are done with it
-      sample.remove();
-    }
+          @Override
+          public void remove() {
+            sample.remove();
+          }
+
+          @Override
+          public FluentType<?> getBaseClassForLoadAndSaveMethods() {
+            return ClassLookup.NMS.forName("Entity").getOrThrow();
+          }
+        }
+    );
+    loadFromNbtMethod = entityHelper.getLoadFromNbtMethod();
+    saveToNbtMethod = entityHelper.getSaveToNbtMethod();
+
   }
 
   /**
@@ -147,78 +145,4 @@ public class EntityNBTUtil {
 
     setNbtTag(entity, entityData);
   }
-
-  private static void initializeHigherThan1_9(FluentType<?> entityClass, Entity sample,
-      Object nmsSample) {
-    // load the loading method
-    initializeLowerThan1_9(entityClass, sample, nmsSample);
-
-    Class<?> tagClass = ClassLookup.NMS.forName("NBTTagCompound").getOrThrow().getUnderlying();
-
-    List<FluentMethod> possibleMethods = entityClass.findMethod()
-        .withReturnType(tagClass)
-        .withParameters(tagClass)
-        .withModifiers(Modifier.PUBLIC)
-        .withoutModifiers(Modifier.STATIC)
-        .findAll()
-        .orElse(Collections.emptyList());
-
-    for (FluentMethod method : possibleMethods) {
-      // the save method : "public NBTTagCompound(final NBTTagCompound compound)"
-      Object testCompound = new NBTTagCompound().toNBT();
-      method.invoke(nmsSample, testCompound);
-
-      NBTTagCompound compound = (NBTTagCompound) INBTBase.fromNBT(testCompound);
-
-      if (compound == null) {
-        continue;
-      }
-
-      if (!compound.isEmpty()) {
-        if (saveToNbtMethod != null) {
-          throw new ReflectionException("Duplicated save method (post 1.9)");
-        }
-        saveToNbtMethod = method;
-      }
-    }
-  }
-
-  private static void initializeLowerThan1_9(FluentType<?> entityClass, Entity sample,
-      Object nmsSample) {
-
-    Class<?> tagClass = ClassLookup.NMS.forName("NBTTagCompound").getOrThrow().getUnderlying();
-
-    List<FluentMethod> possibleMethods = entityClass.findMethod()
-        .withReturnType(Void.TYPE)
-        .withParameters(tagClass)
-        .withModifiers(Modifier.PUBLIC)
-        .withoutModifiers(Modifier.STATIC)
-        .findAll()
-        .orElse(Collections.emptyList());
-
-    for (FluentMethod method : possibleMethods) {
-      // the load method : "public void (final NBTTagCompound compound)"
-      // the save method : "public void (final NBTTagCompound compound)"
-      Object testCompound = new NBTTagCompound().toNBT();
-      method.invoke(nmsSample, testCompound);
-
-      NBTTagCompound compound = (NBTTagCompound) INBTBase.fromNBT(testCompound);
-      if (compound == null) {
-        continue;
-      }
-
-      if (compound.isEmpty()) {
-        if (loadFromNbtMethod != null) {
-          throw new ReflectionException("Duplicated candidate for loading!");
-        }
-        loadFromNbtMethod = method;
-      } else {
-        if (saveToNbtMethod != null) {
-          throw new ReflectionException("Duplicated candidate for saving!");
-        }
-        saveToNbtMethod = method;
-      }
-    }
-  }
-
 }

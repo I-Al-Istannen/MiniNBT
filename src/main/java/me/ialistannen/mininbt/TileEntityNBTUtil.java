@@ -60,6 +60,7 @@ public class TileEntityNBTUtil {
         new DeletableEntitySpawner() {
 
           private BlockState oldState;
+          private FluentType<?> baseClass;
 
           @Override
           public Object spawn() {
@@ -76,14 +77,23 @@ public class TileEntityNBTUtil {
 
             BlockState chestState = block.getState();
 
-            return getTileEntity.invoke(chestState).getOrThrow();
+            Object nmsSample = getTileEntity.invoke(chestState).getOrThrow();
+            baseClass = FluentType.ofUnknown(nmsSample.getClass());
+            return nmsSample;
           }
 
           @Override
           public void remove() {
             oldState.update(true);
           }
-        });
+
+          @Override
+          public FluentType<?> getBaseClassForLoadAndSaveMethods() {
+            return baseClass;
+          }
+        }
+    );
+
     loadFromNBT = entityHelper.getLoadFromNbtMethod();
     saveToNBT = entityHelper.getSaveToNbtMethod();
   }

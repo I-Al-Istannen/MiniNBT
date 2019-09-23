@@ -52,11 +52,10 @@ public class EntityMethodHelper {
     Object nmsSample = entitySpawner.spawn();
 
     try {
-      FluentType<?> entityClass = FluentType.ofUnknown(nmsSample.getClass());
       if (ReflectionUtil.getMajorVersion() > 1 || ReflectionUtil.getMinorVersion() > 8) {
-        initializeHigherThan1_9(entityClass, nmsSample);
+        initializeHigherThan1_9(nmsSample);
       } else {
-        initializeLowerThan1_9(entityClass, nmsSample);
+        initializeLowerThan1_9(nmsSample);
       }
     } finally {
       // kill it again, we are done with it
@@ -64,13 +63,14 @@ public class EntityMethodHelper {
     }
   }
 
-  private void initializeHigherThan1_9(FluentType<?> entityClass, Object nmsSample) {
+  private void initializeHigherThan1_9(Object nmsSample) {
     // load the loading method
-    initializeLowerThan1_9(entityClass, nmsSample);
+    initializeLowerThan1_9(nmsSample);
 
     Class<?> tagClass = ClassLookup.NMS.forName("NBTTagCompound").getOrThrow().getUnderlying();
 
-    List<FluentMethod> possibleMethods = entityClass.findMethod()
+    List<FluentMethod> possibleMethods = entitySpawner.getBaseClassForLoadAndSaveMethods()
+        .findMethod()
         .withReturnType(tagClass)
         .withParameters(tagClass)
         .withModifiers(Modifier.PUBLIC)
@@ -98,10 +98,11 @@ public class EntityMethodHelper {
     }
   }
 
-  private void initializeLowerThan1_9(FluentType<?> entityClass, Object nmsSample) {
+  private void initializeLowerThan1_9(Object nmsSample) {
     Class<?> tagClass = ClassLookup.NMS.forName("NBTTagCompound").getOrThrow().getUnderlying();
 
-    List<FluentMethod> possibleMethods = entityClass.findMethod()
+    List<FluentMethod> possibleMethods = entitySpawner.getBaseClassForLoadAndSaveMethods()
+        .findMethod()
         .withReturnType(Void.TYPE)
         .withParameters(tagClass)
         .withModifiers(Modifier.PUBLIC)
@@ -150,5 +151,12 @@ public class EntityMethodHelper {
      * Removes the created entity and restores the old state.
      */
     void remove();
+
+    /**
+     * Returns the base class used to find load/store methods.
+     *
+     * @return the base class
+     */
+    FluentType<?> getBaseClassForLoadAndSaveMethods();
   }
 }
