@@ -518,6 +518,24 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
       return failure(error);
     }
 
+    /**
+     * Maps a function over this result, if the value is not null. Returns a null success
+     * otherwise.
+     *
+     * @param mapper the function
+     * @param <R> the new result type
+     * @return the resulting action
+     */
+    public <R> ReflectiveResult<R> mapNotNull(Function<T, R> mapper) {
+      if (isPresent()) {
+        if (value == null) {
+          return success(null);
+        }
+        return success(mapper.apply(value));
+      }
+      return failure(error);
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {
