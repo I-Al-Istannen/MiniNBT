@@ -1,17 +1,17 @@
 package me.ialistannen.mininbt;
 
-import static me.ialistannen.mininbt.ReflectionUtil.NameSpace.NMS;
-import static me.ialistannen.mininbt.ReflectionUtil.NameSpace.OBC;
-
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Map.Entry;
 import java.util.Objects;
+import me.ialistannen.mininbt.EntityMethodHelper.DeletableEntitySpawner;
 import me.ialistannen.mininbt.NBTWrappers.INBTBase;
 import me.ialistannen.mininbt.NBTWrappers.NBTTagCompound;
-import me.ialistannen.mininbt.ReflectionUtil.MethodPredicate;
+import me.ialistannen.mininbt.reflection.BukkitReflection.ClassLookup;
+import me.ialistannen.mininbt.reflection.FluentReflection.FluentMethod;
+import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
+import me.ialistannen.mininbt.reflection.FluentReflection.ReflectiveResult;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 
@@ -28,33 +28,64 @@ import org.bukkit.block.BlockState;
  */
 public class TileEntityNBTUtil {
 
-  private static Method loadFromNBT, saveToNBT, getTileEntity;
-  private static boolean error = false;
+  private static FluentMethod loadFromNBT, saveToNBT, getTileEntity;
 
-  private static final Class<?> CRAFT_BLOCK_STATE_CLASS;
+  private static Class<?> CRAFT_BLOCK_STATE_CLASS;
+  private static FluentType<?> TILE_CRAFT_BLOCK_STATE_CLASS;
 
   static {
-    CRAFT_BLOCK_STATE_CLASS = ReflectionUtil.getClass(OBC, "block.CraftBlockState")
-        .orElse(null);
+    CRAFT_BLOCK_STATE_CLASS = ClassLookup.OBC.forName("block.CraftBlockState").getOrThrow()
+        .getUnderlying();
 
-    if (CRAFT_BLOCK_STATE_CLASS == null) {
-      System.out.println("CraftBlockState not found. Version: "
-          + Bukkit.getBukkitVersion() + " " + Bukkit.getVersion());
-      error = true;
-    }
+    TILE_CRAFT_BLOCK_STATE_CLASS = ClassLookup.OBC.forName("block.CraftBlockState").getOrThrow();
 
-    ReflectionUtil.ReflectResponse<Method> tileEntityMethod = ReflectionUtil.getMethod(
-        CRAFT_BLOCK_STATE_CLASS, new MethodPredicate()
-            .withName("getTileEntity").withParameters());
-
-    if (!tileEntityMethod.isValuePresent()) {
-      System.out.println("getTileEntity not found. Version: "
-          + Bukkit.getBukkitVersion() + " " + Bukkit.getVersion());
-      error = true;
+    ReflectiveResult<FluentMethod> tileEntityOld = TILE_CRAFT_BLOCK_STATE_CLASS.findMethod()
+        .withName("getTileEntity")
+        .withParameters()
+        .findSingle();
+    if (tileEntityOld.isPresent()) {
+      getTileEntity = tileEntityOld.getOrThrow();
     } else {
-      getTileEntity = tileEntityMethod.getValue();
-      initializeMethods();
+      TILE_CRAFT_BLOCK_STATE_CLASS = ClassLookup.OBC.forName("block.CraftBlockEntityState")
+          .getOrThrow();
+
+      // Modify the snapshot so BlockState#update does the physics and update work for us!
+      getTileEntity = TILE_CRAFT_BLOCK_STATE_CLASS.findMethod()
+          .withName("getSnapshot")
+          .withParameters()
+          .findSingle().getOrThrow();
     }
+
+    EntityMethodHelper entityHelper = new EntityMethodHelper(
+        new DeletableEntitySpawner() {
+
+          private BlockState oldState;
+
+          @Override
+          public Object spawn() {
+            if (Bukkit.getWorlds().isEmpty()) {
+              throw new IllegalStateException("Called me before at least one world was loaded...");
+            }
+            World world = Bukkit.getWorlds().get(0);
+            Block block = world.getBlockAt(world.getSpawnLocation());
+
+            // Save old state to later restore it
+            oldState = block.getState();
+
+            block.setType(Material.CHEST);
+
+            BlockState chestState = block.getState();
+
+            return getTileEntity.invoke(chestState).getOrThrow();
+          }
+
+          @Override
+          public void remove() {
+            oldState.update(true);
+          }
+        });
+    loadFromNBT = entityHelper.getLoadFromNbtMethod();
+    saveToNBT = entityHelper.getSaveToNbtMethod();
   }
 
   /**
@@ -62,11 +93,9 @@ public class TileEntityNBTUtil {
    *
    * @param blockState The Bukkit {@link BlockState}
    * @return The NMS tile entity
-   * @throws IllegalStateException if {@link #ensureNoError()} throws it
    */
   private static Object toTileEntity(BlockState blockState) {
-    ensureNoError();
-    return ReflectionUtil.invokeMethod(getTileEntity, blockState).getValue();
+    return getTileEntity.invoke(blockState).getOrThrow();
   }
 
   /**
@@ -75,18 +104,16 @@ public class TileEntityNBTUtil {
    * @param blockState The Bukkit {@link BlockState} to get an {@link NBTTagCompound} for.
    * @return The {@link NBTTagCompound} of the {@link BlockState}
    */
-  @SuppressWarnings("WeakerAccess")   // others may want to call that...
   public static NBTTagCompound getNbtTag(BlockState blockState) {
     Objects.requireNonNull(blockState, "blockState can not be null");
     ensureCorrectClass(blockState);
-    ensureNoError();
 
     Object tileEntity = toTileEntity(blockState);
 
     Object nbtTag = new NBTTagCompound().toNBT();
 
     // populate it
-    ReflectionUtil.invokeMethod(saveToNBT, tileEntity, nbtTag);
+    saveToNBT.invoke(tileEntity, nbtTag).ensureSuccessful();
 
     return (NBTTagCompound) INBTBase.fromNBT(nbtTag);
   }
@@ -100,21 +127,17 @@ public class TileEntityNBTUtil {
    * @param compound The {@link NBTTagCompound} to set it to
    * @throws NullPointerException If blockState or compound is null
    * @throws IllegalArgumentException If {@link #isValidClass(BlockState)} returns false
-   * @throws IllegalStateException If an unrepairable error occurred earlier (probably version
-   *     incompatibility).
    */
-  @SuppressWarnings("WeakerAccess")   // others may want to call that...
   public static void setNbtTag(BlockState blockState, NBTTagCompound compound) {
     Objects.requireNonNull(blockState, "blockState can not be null");
     Objects.requireNonNull(compound, "compound can not be null");
     ensureCorrectClass(blockState);
-    ensureNoError();
 
     Object tileEntity = toTileEntity(blockState);
 
-    ReflectionUtil.invokeMethod(loadFromNBT, tileEntity, compound.toNBT());
+    // store it
+    loadFromNBT.invoke(tileEntity, compound.toNBT()).ensureSuccessful();
 
-    // maybe unneeded
     blockState.update();
   }
 
@@ -127,41 +150,31 @@ public class TileEntityNBTUtil {
    * @param compound The {@link NBTTagCompound} to set it to
    * @throws NullPointerException If blockState or compound is null
    * @throws IllegalArgumentException If {@link #isValidClass(BlockState)} returns false
-   * @throws IllegalStateException If an unrepairable error occurred earlier (probably version
-   *     incompatibility).
    */
   public static void appendNbtTag(BlockState blockState, NBTTagCompound compound) {
     Objects.requireNonNull(blockState, "blockState can not be null");
     Objects.requireNonNull(compound, "compound can not be null");
     ensureCorrectClass(blockState);
-    ensureNoError();
-
-    Object tileEntity = toTileEntity(blockState);
 
     NBTTagCompound tileNBT = getNbtTag(blockState);
     for (Entry<String, INBTBase> entry : compound.getAllEntries().entrySet()) {
       tileNBT.set(entry.getKey(), entry.getValue());
     }
 
-    ReflectionUtil.invokeMethod(loadFromNBT, tileEntity, tileNBT.toNBT());
-
-    // maybe unneeded
-    blockState.update();
+    setNbtTag(blockState, tileNBT);
   }
 
   /**
-   * Checks whether you can pass the {@link BlockState} the the {@link #setNbtTag(BlockState,
+   * Checks whether you can pass the {@link BlockState} to the {@link #setNbtTag(BlockState,
    * NBTTagCompound)} or {@link #getNbtTag(BlockState)} methods
    *
    * @param blockState The Bukkit {@link BlockState} to check
    * @return True if the {@link BlockState} has a TileEntity
-   * @throws IllegalStateException If an unrepairable error occurred earlier (probably version
-   *     incompatibility).
    */
   public static boolean isValidClass(BlockState blockState) {
-    ensureNoError();
-    // no NPE will be thrown.
-    return !CRAFT_BLOCK_STATE_CLASS.equals(blockState.getClass());
+    // The default state returns null. Subclasses can and do override it
+    // Since 1.14 it is split up to TileState, which this will cover as well
+    return CRAFT_BLOCK_STATE_CLASS != blockState.getClass();
   }
 
   /**
@@ -171,127 +184,8 @@ public class TileEntityNBTUtil {
   private static void ensureCorrectClass(BlockState state) {
     if (!isValidClass(state)) {
       throw new IllegalArgumentException(
-          "The state is not a TileEntity. Valid is e.g. a Chest or a Furnace.");
-    }
-  }
-
-  /**
-   * @throws IllegalStateException If {@link #error} is true
-   */
-  private static void ensureNoError() {
-    if (error) {
-      throw new IllegalStateException("A critical, non recoverable error occurred earlier.");
-    }
-  }
-
-  @SuppressWarnings("OptionalGetWithoutIsPresent")
-  private static void initializeMethods() {
-    if (Bukkit.getWorlds().isEmpty()) {
-      throw new IllegalStateException("Called me before at least one world was loaded...");
-    }
-    Block block = Bukkit.getWorlds()
-        .get(0)
-        .getBlockAt(Bukkit.getWorlds().get(0).getSpawnLocation());
-    BlockState oldState = block.getState();
-    block.setType(Material.CHEST);
-    BlockState chestState = block.getState();
-
-    Object tileEntity = ReflectionUtil.invokeMethod(getTileEntity, chestState).getValue();
-
-    if (ReflectionUtil.getMajorVersion() > 2 || ReflectionUtil.getMinorVersion() > 9) {
-      initializeMethodsAfter1_9(ReflectionUtil.getClass(NMS, "TileEntity").get(), chestState,
-          tileEntity);
-    } else {
-      initializeMethodsBefore1_9(ReflectionUtil.getClass(NMS, "TileEntity").get(), chestState,
-          tileEntity);
-    }
-
-    if (loadFromNBT == null || saveToNBT == null) {
-      System.out.println("Null: "
-          + " load " + (loadFromNBT == null)
-          + " save " + (saveToNBT == null)
-          + ". Version: " + Bukkit.getBukkitVersion() + " " + Bukkit.getVersion());
-      error = true;
-    }
-
-    // restore old
-    oldState.update(true);
-  }
-
-  @SuppressWarnings("OptionalGetWithoutIsPresent")
-  private static void initializeMethodsAfter1_9(Class<?> tileEntityClass, BlockState blockState,
-      Object tileEntity) {
-
-    // the load method is the same
-    initializeMethodsBefore1_9(tileEntityClass, blockState, tileEntity);
-
-    // search the save method
-    for (Method method : tileEntityClass.getMethods()) {
-      if (method.getReturnType().equals(ReflectionUtil.getClass(NMS, "NBTTagCompound").get())
-          && method.getParameterTypes().length == 1
-          && method.getParameterTypes()[0].equals(
-          ReflectionUtil.getClass(NMS, "NBTTagCompound").get())
-          && Modifier.isPublic(method.getModifiers())
-          && !Modifier.isStatic(method.getModifiers())) {
-
-        Object testCompound = new NBTTagCompound().toNBT();
-        ReflectionUtil.invokeMethod(method, tileEntity, testCompound);
-
-        NBTTagCompound compound = (NBTTagCompound) INBTBase.fromNBT(testCompound);
-        if (compound == null || compound.isEmpty()) {
-          continue;
-        }
-
-        if (saveToNBT != null) {
-          System.out.println("Found more than one save method. Version: "
-              + Bukkit.getBukkitVersion() + " " + Bukkit.getVersion());
-          error = true;
-          return;
-        }
-        saveToNBT = method;
-      }
-    }
-  }
-
-  @SuppressWarnings("OptionalGetWithoutIsPresent")
-  private static void initializeMethodsBefore1_9(Class<?> tileEntityClass, BlockState blockState,
-      Object tileEntity) {
-    for (Method method : tileEntityClass.getMethods()) {
-      if (method.getReturnType().equals(Void.TYPE)
-          && method.getParameterTypes().length == 1
-          && method.getParameterTypes()[0].equals(
-          ReflectionUtil.getClass(NMS, "NBTTagCompound").get())
-          && Modifier.isPublic(method.getModifiers())
-          && !Modifier.isStatic(method.getModifiers())) {
-
-        Object testCompound = new NBTTagCompound().toNBT();
-        ReflectionUtil.invokeMethod(method, tileEntity, testCompound);
-
-        NBTTagCompound compound = (NBTTagCompound) INBTBase.fromNBT(testCompound);
-        if (compound == null) {
-          continue;
-        }
-
-        if (compound.isEmpty()) {
-          // load method
-          if (loadFromNBT != null) {
-            System.out.println("Found more than one load method. Version: "
-                + Bukkit.getBukkitVersion() + " " + Bukkit.getVersion());
-            error = true;
-            return;
-          }
-          loadFromNBT = method;
-        } else {
-          // save method
-          if (saveToNBT != null) {
-            System.out.println("Found more than one save method. Version: "
-                + Bukkit.getBukkitVersion() + " " + Bukkit.getVersion());
-            error = true;
-            return;
-          }
-          saveToNBT = method;
-        }
-      }
+          "The state is not a TileEntity. Valid is e.g. a Chest or a Furnace."
+      );
     }
   }
 }
