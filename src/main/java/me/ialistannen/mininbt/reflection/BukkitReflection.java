@@ -18,8 +18,10 @@ public class BukkitReflection {
   // ==== INIT SERVER VERSION ====
 
   static {
-    // included to allow tests to run. Will not be hit when deployed
-    String name = Bukkit.getServer() == null
+    boolean runningUnderTest = Bukkit.getServer() == null
+        || Bukkit.getServer().getClass().getName().contains("Mockito");
+
+    String name = runningUnderTest
         ? "org.bukkit.craftbukkit.v1_14_R1"
         : Bukkit.getServer().getClass().getPackage().getName();
     String[] split = name.split("\\.");
