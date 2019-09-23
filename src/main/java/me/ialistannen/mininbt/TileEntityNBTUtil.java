@@ -16,7 +16,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 
 /**
- * Allows modification of TileEntity data
+ * Allows modification of TileEntity data.
  * <p>
  * The methods must only be called when at least one world is loaded, as it needs to spawn a sample
  * entity (ArmorStand). <br> It will be enforced by throwing an {@link IllegalStateException}.
@@ -25,19 +25,22 @@ import org.bukkit.block.BlockState;
  * <i><b>DISCLAIMER: </b></i> <br>
  * Doesn't allow for the addition of new tags. You can modify the tags of the TileEntity, but not
  * add new ones. This is a limitation of minecraft.
+ *
+ * <p><br><em>All methods in this class may throw a
+ * {@link me.ialistannen.mininbt.reflection.ReflectionException}</em></p>
  */
 public class TileEntityNBTUtil {
 
   private static FluentMethod loadFromNBT, saveToNBT, getTileEntity;
 
   private static Class<?> CRAFT_BLOCK_STATE_CLASS;
-  private static FluentType<?> TILE_CRAFT_BLOCK_STATE_CLASS;
 
   static {
     CRAFT_BLOCK_STATE_CLASS = ClassLookup.OBC.forName("block.CraftBlockState").getOrThrow()
         .getUnderlying();
 
-    TILE_CRAFT_BLOCK_STATE_CLASS = ClassLookup.OBC.forName("block.CraftBlockState").getOrThrow();
+    FluentType<?> TILE_CRAFT_BLOCK_STATE_CLASS = ClassLookup.OBC.forName("block.CraftBlockState")
+        .getOrThrow();
 
     ReflectiveResult<FluentMethod> tileEntityOld = TILE_CRAFT_BLOCK_STATE_CLASS.findMethod()
         .withName("getTileEntity")
@@ -99,20 +102,20 @@ public class TileEntityNBTUtil {
   }
 
   /**
-   * Gets the NMS handle of a bukkit entity
+   * Retrieves the NMS handle of a bukkit entity.
    *
-   * @param blockState The Bukkit {@link BlockState}
-   * @return The NMS tile entity
+   * @param blockState the Bukkit {@link BlockState}
+   * @return the NMS tile entity
    */
   private static Object toTileEntity(BlockState blockState) {
     return getTileEntity.invoke(blockState).getOrThrow();
   }
 
   /**
-   * Returns the {@link NBTTagCompound} of a {@link BlockState}
+   * Returns the {@link NBTTagCompound} of a {@link BlockState}.
    *
-   * @param blockState The Bukkit {@link BlockState} to get an {@link NBTTagCompound} for.
-   * @return The {@link NBTTagCompound} of the {@link BlockState}
+   * @param blockState the Bukkit {@link BlockState} to get an {@link NBTTagCompound} for.
+   * @return the {@link NBTTagCompound} of the {@link BlockState}
    */
   public static NBTTagCompound getNbtTag(BlockState blockState) {
     Objects.requireNonNull(blockState, "blockState can not be null");
@@ -129,14 +132,13 @@ public class TileEntityNBTUtil {
   }
 
   /**
-   * Sets the {@link NBTTagCompound} of a {@link BlockState}.
-   * <p>
-   * Changes will appear.
+   * Sets the {@link NBTTagCompound} of a {@link BlockState}. And applies the changes by updating
+   * the blockstate.
    *
-   * @param blockState The Bukkit {@link BlockState} to get an {@link NBTTagCompound} for.
-   * @param compound The {@link NBTTagCompound} to set it to
-   * @throws NullPointerException If blockState or compound is null
-   * @throws IllegalArgumentException If {@link #isValidClass(BlockState)} returns false
+   * @param blockState the Bukkit {@link BlockState} to get an {@link NBTTagCompound} for
+   * @param compound the {@link NBTTagCompound} to set it to
+   * @throws NullPointerException if blockState or compound is null
+   * @throws IllegalArgumentException if {@link #isValidClass(BlockState)} returns false
    */
   public static void setNbtTag(BlockState blockState, NBTTagCompound compound) {
     Objects.requireNonNull(blockState, "blockState can not be null");
@@ -152,14 +154,13 @@ public class TileEntityNBTUtil {
   }
 
   /**
-   * Appends the {@link NBTTagCompound} to the Nbt tag of a {@link BlockState} .
-   * <p>
-   * Changes will appear.
+   * Appends the {@link NBTTagCompound} to the Nbt tag of a {@link BlockState}. And applies the
+   * changes by updating the blockstate.
    *
-   * @param blockState The Bukkit {@link BlockState} to get an {@link NBTTagCompound} for.
-   * @param compound The {@link NBTTagCompound} to set it to
-   * @throws NullPointerException If blockState or compound is null
-   * @throws IllegalArgumentException If {@link #isValidClass(BlockState)} returns false
+   * @param blockState the Bukkit {@link BlockState} to get an {@link NBTTagCompound} for
+   * @param compound the {@link NBTTagCompound} to append
+   * @throws NullPointerException if blockState or compound is null
+   * @throws IllegalArgumentException if {@link #isValidClass(BlockState)} returns false
    */
   public static void appendNbtTag(BlockState blockState, NBTTagCompound compound) {
     Objects.requireNonNull(blockState, "blockState can not be null");
@@ -176,10 +177,13 @@ public class TileEntityNBTUtil {
 
   /**
    * Checks whether you can pass the {@link BlockState} to the {@link #setNbtTag(BlockState,
-   * NBTTagCompound)} or {@link #getNbtTag(BlockState)} methods
+   * NBTTagCompound)} or {@link #getNbtTag(BlockState)} methods.
    *
-   * @param blockState The Bukkit {@link BlockState} to check
-   * @return True if the {@link BlockState} has a TileEntity
+   * <p>This is needed as not all BlockStates are created equal - some are just plain blocks without
+   * any attached tile entity.</p>
+   *
+   * @param blockState the Bukkit {@link BlockState} to check
+   * @return true if the {@link BlockState} has a TileEntity
    */
   public static boolean isValidClass(BlockState blockState) {
     // The default state returns null. Subclasses can and do override it

@@ -19,7 +19,10 @@ import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
 import me.ialistannen.mininbt.reflection.FluentReflection.ReflectiveResult;
 
 /**
- * Provides wrapper objects to abstract the NBT versions. Probably way too complicated...
+ * Provides wrapper objects to abstract the NBT versions.
+ *
+ * <p><br><em>Class initialization may throw a
+ * {@link me.ialistannen.mininbt.reflection.ReflectionException}</em></p>
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
 public class NBTWrappers {

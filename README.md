@@ -31,3 +31,7 @@ This allows you to parse a String to a NBTTagCompound. It uses the `MojangsonPar
 Quite easy. I have _nearly_ exactly recreated the original NBT classes, so you can use it in the same way you would use the original.  
 
 You can refer to the format on the MinecraftWiki pages and you will find any class you find there here too. With the same name.
+
+## Breaking changes in 1.0.1
+### ItemNBTUtil
+* `getTag` now throws an exception if the tag was no compound or is unknown instead of returning an empty tag

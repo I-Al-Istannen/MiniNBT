@@ -12,7 +12,6 @@ interface UnsafeReflectiveAction<T> {
   /**
    * The SAM call method.
    *
-   * @param <T> the type of the result
    * @return the result
    * @throws Throwable if an error occurs
    */

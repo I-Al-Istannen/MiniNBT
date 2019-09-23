@@ -24,6 +24,9 @@ import org.bukkit.entity.EntityType;
  * <i><b>DISCLAIMER: </b></i> <br>
  * Doesn't allow for the addition of new tags. You can modify the tags of the TileEntity, but not
  * add new ones. This is a limitation of minecraft.
+ *
+ * <p><br><em>All methods in this class may throw a
+ * {@link me.ialistannen.mininbt.reflection.ReflectionException}</em></p>
  */
 public class EntityNBTUtil {
 
@@ -70,20 +73,20 @@ public class EntityNBTUtil {
   }
 
   /**
-   * Gets the NMS handle of a bukkit entity
+   * Returns the NMS handle of a bukkit entity.
    *
-   * @param entity The bukkit entity
-   * @return The NMS entity
+   * @param entity the bukkit entity
+   * @return the NMS entity
    */
   private static Object toNMSEntity(Entity entity) {
     return getHandle.invoke(entity).getOrThrow();
   }
 
   /**
-   * Gets the NBT-Tag of an entity
+   * Retrieves the NBT tag of an entity.
    *
-   * @param entity The entity to get the nbt tag for
-   * @return The NBTTag of the entity
+   * @param entity the entity whose tag to retrieve
+   * @return the nbt tag of the entity
    * @throws NullPointerException if {@code entity} is null
    */
   public static NBTTagCompound getNbtTag(Entity entity) {
@@ -105,15 +108,12 @@ public class EntityNBTUtil {
   }
 
   /**
-   * Applies the {@link NBTTagCompound} tp the passed {@link Entity}
+   * Applies the {@link NBTTagCompound} to the passed {@link Entity}.
    *
-   * @param entity The entity to modify the nbt tag
-   * @param compound The {@link NBTTagCompound} to set it to
+   * @param entity the entity to modify
+   * @param compound the {@link NBTTagCompound} to set it to
    * @throws NullPointerException if {@code entity} or {@code compound} is null
-   * @throws IllegalStateException if a critical, non recoverable error occurred earlier
-   *     (loading methods).
    */
-  @SuppressWarnings("WeakerAccess") // util...
   public static void setNbtTag(Entity entity, NBTTagCompound compound) {
     Objects.requireNonNull(entity, "entity can not be null");
     Objects.requireNonNull(compound, "compound can not be null");
@@ -124,13 +124,11 @@ public class EntityNBTUtil {
   }
 
   /**
-   * Appends the {@link NBTTagCompound} to the entities NBT tag, overwriting already set values
+   * Appends the {@link NBTTagCompound} to the entities NBT tag, overwriting already set values.
    *
-   * @param entity The entity whose NbtTag to change
-   * @param compound The {@link NBTTagCompound} whose values you want to add
+   * @param entity the entity whose NbtTag to change
+   * @param compound the {@link NBTTagCompound} to add
    * @throws NullPointerException if {@code entity} or {@code compound} is null
-   * @throws IllegalStateException if a critical, non recoverable error occurred earlier
-   *     (loading methods).
    */
   public static void appendNbtTag(Entity entity, NBTTagCompound compound) {
     // yes, getNbtTag would throw them as well.

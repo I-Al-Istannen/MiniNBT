@@ -8,7 +8,10 @@ import me.ialistannen.mininbt.reflection.FluentReflection.FluentMethod;
 import me.ialistannen.mininbt.reflection.FluentReflection.ReflectiveResult;
 
 /**
- * A wrapper for the MojangsonParser used for parsing NBT
+ * A wrapper for the MojangsonParser used for parsing NBT.
+ *
+ * <p><br><em>All methods in this class may throw a
+ * {@link me.ialistannen.mininbt.reflection.ReflectionException}</em></p>
  */
 public class NbtParser {
 
@@ -24,10 +27,10 @@ public class NbtParser {
   }
 
   /**
-   * Parses a String to an {@link NBTTagCompound}
+   * Parses a String to an {@link NBTTagCompound}.
    *
-   * @param nbt The nbt to parse
-   * @return The parsed NBTTagCompound
+   * @param nbt the nbt string to parse
+   * @return the parsed NBTTagCompound
    * @throws NbtParseException if an error occurred while parsing the NBT tag
    */
   public static NBTTagCompound parse(String nbt) throws NbtParseException {
@@ -47,14 +50,9 @@ public class NbtParser {
   }
 
   /**
-   * An exception occurred while parsing a NBT tag. Checked.
+   * An exception occurred while parsing a NBT tag.
    */
   public static class NbtParseException extends Exception {
-
-    /**
-     *
-     */
-    private static final long serialVersionUID = -8761176772930529828L;
 
     /**
      * Constructs a new exception with the specified detail message and cause.

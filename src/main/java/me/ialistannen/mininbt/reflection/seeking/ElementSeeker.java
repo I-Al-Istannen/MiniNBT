@@ -27,7 +27,7 @@ public interface ElementSeeker<T> {
   }
 
   /**
-   * Finds the first matching element.
+   * Finds the first matching element. Fails if there are none.
    *
    * @return the found element
    */
@@ -36,8 +36,8 @@ public interface ElementSeeker<T> {
   }
 
   /**
-   * Finds all matching elements or an error if none. This means an empty list will never be
-   * returned.
+   * Finds all matching elements and errors if there were none. This means an empty list will never
+   * be returned.
    *
    * @return the found elements
    */

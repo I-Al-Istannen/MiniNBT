@@ -9,7 +9,10 @@ import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
 import org.bukkit.inventory.ItemStack;
 
 /**
- * A Util to save NBT data to ItemStacks
+ * A Util to manipulate NBT data of ItemStacks.
+ *
+ * <p><br><em>All methods in this class may throw a
+ * {@link me.ialistannen.mininbt.reflection.ReflectionException}</em></p>
  */
 public class ItemNBTUtil {
 
@@ -21,7 +24,7 @@ public class ItemNBTUtil {
       .withParameters(ItemStack.class)
       .findSingle()
       .getOrThrow();
-  private static final FluentMethod As_BUKKIT_COPY = ClassLookup.OBC
+  private static final FluentMethod AS_BUKKIT_COPY = ClassLookup.OBC
       .forName("inventory.CraftItemStack")
       .getOrThrow()
       .findMethod()
@@ -31,29 +34,31 @@ public class ItemNBTUtil {
       .getOrThrow();
 
   /**
-   * @param itemStack The {@link ItemStack} to convert
-   * @return The NMS Item stack
+   * Converts an {@link ItemStack} to its nms counterpart.
+   *
+   * @param itemStack the {@link ItemStack} to convert
+   * @return the NMS Item stack
    */
   private static Object asNMSCopy(ItemStack itemStack) {
     return AS_NMS_COPY.invokeStatic(itemStack).getOrThrow();
   }
 
   /**
-   * Only pass a NMS Itemstack!
+   * Converts an nms ItemStack to a bukkit {@link ItemStack}.
    *
-   * @param nmsItem The NMS item to convert
-   * @return The converted Item
+   * @param nmsItem the NMS item to convert
+   * @return the converted Item
    */
   private static ItemStack asBukkitCopy(Object nmsItem) {
-    return (ItemStack) As_BUKKIT_COPY.invokeStatic(nmsItem).getOrThrow();
+    return (ItemStack) AS_BUKKIT_COPY.invokeStatic(nmsItem).getOrThrow();
   }
 
   /**
-   * Sets the NBT tag of an item
+   * Sets the NBT tag of an item.
    *
-   * @param tag The new tag
-   * @param itemStack The ItemStack
-   * @return The modified itemStack
+   * @param tag the new tag
+   * @param itemStack the item to set it on
+   * @return the modified item
    */
   public static ItemStack setNBTTag(NBTTagCompound tag, ItemStack itemStack) {
     Object nbtTag = tag.toNBT();
@@ -70,10 +75,11 @@ public class ItemNBTUtil {
   }
 
   /**
-   * Gets the NBTTag of an item. In case of any error it returns a blank one.
+   * Retrieves the NBTTag of an item. Returns a blank one if there is none present.
    *
-   * @param itemStack The ItemStack to get the tag for
-   * @return The NBTTagCompound of the ItemStack or a new one if it had none or an error occurred
+   * @param itemStack the item to get the tag for
+   * @return the retrieved tag or a new one if it had none
+   * @throws IllegalArgumentException if the tag was no compound tag or could not be converted
    */
   public static NBTTagCompound getTag(ItemStack itemStack) {
     Object nmsItem = asNMSCopy(itemStack);
@@ -92,7 +98,7 @@ public class ItemNBTUtil {
     }
     INBTBase base = INBTBase.fromNBT(tag);
     if (base == null || base.getClass() != NBTTagCompound.class) {
-      return new NBTTagCompound();
+      throw new IllegalArgumentException("The tag I received was not valid: " + tag);
     }
 
     return (NBTTagCompound) base;

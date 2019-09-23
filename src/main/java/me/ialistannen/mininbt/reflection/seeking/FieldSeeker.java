@@ -14,10 +14,11 @@ import me.ialistannen.mininbt.reflection.ReflectionException;
 
 /**
  * Searches a field. Walks along the inheritance hierarchy if the field can not be found if not
- * disabled.
+ * disabled ({@link #dontWalkHierarchy()}).
  *
  * @param <C> the class the field is in
  */
+@SuppressWarnings("TypeParameterExtendsFinalClass") // Class has a recursive type param
 public class FieldSeeker<C extends Class<C>> implements ElementSeeker<FluentField> {
 
   private List<Predicate<Field>> filters;

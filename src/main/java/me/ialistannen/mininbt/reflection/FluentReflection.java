@@ -154,7 +154,7 @@ public abstract class FluentReflection<T extends FluentReflection<T>> {
     }
 
     /**
-     * Returns the unlderying executable.
+     * Returns the underlying executable.
      *
      * @return the underlying executable
      */

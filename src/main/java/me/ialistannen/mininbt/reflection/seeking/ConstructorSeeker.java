@@ -16,6 +16,7 @@ import me.ialistannen.mininbt.reflection.ReflectionException;
  *
  * @param <C> the type of the class
  */
+@SuppressWarnings("TypeParameterExtendsFinalClass") // Class has a recursive type param
 public class ConstructorSeeker<C extends Class<C>> extends
     ExecutableSeeker<C, ConstructorSeeker<C>> implements ElementSeeker<FluentConstructor<C>> {
 

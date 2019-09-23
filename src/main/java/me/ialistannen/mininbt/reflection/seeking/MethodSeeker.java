@@ -16,6 +16,7 @@ import me.ialistannen.mininbt.reflection.ReflectionException;
  *
  * @param <C> the type of the class
  */
+@SuppressWarnings("TypeParameterExtendsFinalClass") // Class has a recursive type param
 public class MethodSeeker<C extends Class<C>> extends
     ExecutableSeeker<C, MethodSeeker<C>> implements ElementSeeker<FluentMethod> {
 
@@ -47,7 +48,8 @@ public class MethodSeeker<C extends Class<C>> extends
   }
 
   /**
-   * Searches for methods matching the given predicate.
+   * Searches for methods matching the given predicate. This is a specialized form of {@link
+   * #matching(Predicate)}.
    *
    * @param predicate the predicate
    * @return this seeker
