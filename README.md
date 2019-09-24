@@ -1,3 +1,5 @@
+[![Build Status](https://ci.ialistannen.de/job/MiniNBT/badge/icon)](https://ci.ialistannen.de/job/MiniNBT/)
+
 # TOC
 * [About](#about)
 * [Utilities](#utilities)
