@@ -63,7 +63,8 @@ if(compound.hasKey(dataKey)){
     player.sendMessage(ChatColor.GOLD + "Got: "  + ChatColor.GREEN + compound.getString(dataKey));
 } else {
     compound.setString(dataKey, String.join(" ", args)); // set it to command arguments
-    ItemNBTUtil.setNBTTag(compound, item);
+    item = ItemNBTUtil.setNBTTag(compound, item);  // setNBTTag returns a new item and does not modify it
+    player.getInventory().setItemInMainHand(item); // overwrite the item to apply the tag
 }
 ```
 
