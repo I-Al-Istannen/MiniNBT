@@ -4,11 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.logging.Logger;
 import me.ialistannen.mininbt.NBTWrappers.NBTTagCompound;
+import me.ialistannen.mininbt.reflection.BukkitReflection.ClassLookup;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Server;
-import org.bukkit.craftbukkit.v1_14_R1.inventory.CraftItemFactory;
+import org.bukkit.inventory.ItemFactory;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,12 @@ class ItemNBTUtilTest {
     Server serverMock = Mockito.mock(Server.class);
     timer.step("Mock created");
     Mockito.when(serverMock.getItemFactory()).thenReturn(
-        CraftItemFactory.instance()
+        (ItemFactory) ClassLookup.OBC.forName("inventory.CraftItemFactory").getOrThrow()
+            .findMethod()
+            .withName("instance")
+            .findSingle()
+            .getOrThrow().invokeStatic()
+            .getOrThrow()
     );
     Mockito.when(serverMock.getLogger()).thenReturn(Logger.getLogger("Test"));
     timer.step("Registered");

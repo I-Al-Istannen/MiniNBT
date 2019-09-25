@@ -12,6 +12,8 @@ class NbtParserTest {
 
   @Test
   public void roundtripSimpleCompound() throws NbtParseException {
+    NMSPrecenseAssumption.assumeSpigotIsAvailable();
+
     NBTTagCompound compound = new NBTTagCompound();
     compound.setString("hello", "World");
     compound.setBoolean("you", true);

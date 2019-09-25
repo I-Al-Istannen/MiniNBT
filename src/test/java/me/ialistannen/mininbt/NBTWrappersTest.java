@@ -14,6 +14,8 @@ class NBTWrappersTest {
 
   @Test
   public void testCompoundRoundTrip() {
+    NMSPrecenseAssumption.assumeSpigotIsAvailable();
+
     NBTTagCompound compound = new NBTTagCompound();
     compound.setString("Hey", "You");
     compound.setByte("Byte", (byte) 50);
