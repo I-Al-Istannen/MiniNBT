@@ -27,7 +27,7 @@ interface UnsafeReflectiveAction<T> {
     try {
       return ReflectiveResult.success(action.run());
     } catch (Throwable throwable) {
-      throw new ReflectionException("Error running reflective action!", throwable);
+      return ReflectiveResult.failure(throwable);
     }
   }
 }
