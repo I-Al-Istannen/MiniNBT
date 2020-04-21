@@ -1,12 +1,13 @@
 package me.ialistannen.mininbt;
 
-import java.lang.reflect.Modifier;
 import me.ialistannen.mininbt.NBTWrappers.INBTBase;
 import me.ialistannen.mininbt.NBTWrappers.NBTTagCompound;
 import me.ialistannen.mininbt.reflection.BukkitReflection.ClassLookup;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentMethod;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
 import org.bukkit.inventory.ItemStack;
+
+import java.lang.reflect.Modifier;
 
 /**
  * A Util to manipulate NBT data of ItemStacks.
@@ -30,6 +31,22 @@ public class ItemNBTUtil {
       .findMethod()
       .withName("asBukkitCopy")
       .withReturnType(ItemStack.class)
+      .findSingle()
+      .getOrThrow();
+
+  private static final FluentMethod GET_TAG = ClassLookup.NMS
+      .forName("ItemStack")
+      .getOrThrow()
+      .findMethod()
+      .withName("getTag")
+      .findSingle()
+      .getOrThrow();
+  private static final FluentMethod SET_TAG = ClassLookup.NMS
+      .forName("ItemStack")
+      .getOrThrow()
+      .findMethod()
+      .withName("setTag")
+      .withModifiers(Modifier.PUBLIC)
       .findSingle()
       .getOrThrow();
 
@@ -63,13 +80,8 @@ public class ItemNBTUtil {
   public static ItemStack setNBTTag(NBTTagCompound tag, ItemStack itemStack) {
     Object nbtTag = tag.toNBT();
     Object nmsItem = asNMSCopy(itemStack);
-    FluentType.ofUnknown(nmsItem.getClass()).findMethod()
-        .withName("setTag")
-        .withModifiers(Modifier.PUBLIC)
-        .findSingle()
-        .getOrThrow()
-        .invoke(nmsItem, nbtTag)
-        .ensureSuccessful();
+
+    SET_TAG.invoke(nmsItem, nbtTag).ensureSuccessful();
 
     return asBukkitCopy(nmsItem);
   }
@@ -88,10 +100,7 @@ public class ItemNBTUtil {
       throw new NullPointerException("Unable to find a nms item clone for " + itemStack);
     }
 
-    Object tag = FluentType.ofUnknown(nmsItem.getClass()).findMethod()
-        .withName("getTag")
-        .findSingle().getOrThrow()
-        .invoke(nmsItem).getOrThrow();
+    Object tag = GET_TAG.invoke(nmsItem).getOrThrow();
 
     if (tag == null) {
       return new NBTTagCompound();
