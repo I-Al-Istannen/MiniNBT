@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
+
 import me.ialistannen.mininbt.reflection.BukkitReflection.ClassLookup;
+import me.ialistannen.mininbt.reflection.FluentReflection;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentConstructor;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentMethod;
 import me.ialistannen.mininbt.reflection.FluentReflection.FluentType;
@@ -85,11 +87,17 @@ public class NBTWrappers {
    * A NBTTagString
    */
   public static class NBTTagString extends INBTBase {
+    private static final FluentType<?> NBT_TAG_STRING_CLASS = ClassLookup.NMS
+        .forName("NBTTagString").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_STRING_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagString").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_STRING_CONSTRUCTOR = NBT_TAG_STRING_CLASS
         .findConstructor()
         .withParameters(String.class)
+        .findSingle().getOrThrow();
+
+    private static final FluentReflection.FluentField DATA_FIELD = NBT_TAG_STRING_CLASS
+        .findField()
+        .withName("data")
         .findSingle().getOrThrow();
 
     private String string;
@@ -123,10 +131,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      Object stringValue = FluentType.ofUnknown(nbtObject.getClass())
-          .findField()
-          .withName("data")
-          .findSingle().getOrThrow()
+      Object stringValue = DATA_FIELD
           .getValue(nbtObject).getOrThrow();
       return new NBTTagString((String) stringValue);
     }
@@ -160,11 +165,32 @@ public class NBTWrappers {
    * A NBTTagCompound
    */
   public static class NBTTagCompound extends INBTBase {
+    private static final FluentType<?> NBT_BASE = ClassLookup.NMS
+        .forName("NBTBase").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_COMPOUND_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagCompound").getOrThrow()
+    private static final FluentType<?> NBT_TAG_COMPOUND_CLASS = ClassLookup.NMS
+        .forName("NBTTagCompound").getOrThrow();
+
+    private static final FluentConstructor<?> NBT_TAG_COMPOUND_CONSTRUCTOR = NBT_TAG_COMPOUND_CLASS
         .findConstructor()
         .withParameters()
+        .findSingle().getOrThrow();
+
+    private static final FluentMethod SET_METHOD = NBT_TAG_COMPOUND_CLASS
+        .findMethod()
+        .withName("set")
+        .withParameters(String.class, NBT_BASE.getUnderlying())
+        .findSingle().getOrThrow();
+
+    private static final FluentMethod GET_METHOD = NBT_TAG_COMPOUND_CLASS
+        .findMethod()
+        .withName("get")
+        .withParameters(String.class)
+        .findSingle().getOrThrow();
+
+    private static final FluentMethod GET_KEYSET_METHOD = NBT_TAG_COMPOUND_CLASS.findMethod()
+        .withModifiers(Modifier.PUBLIC)
+        .matchingMethod(method -> Set.class.isAssignableFrom(method.getReturnType()))
         .findSingle().getOrThrow();
 
     private final Map<String, INBTBase> map = new HashMap<>();
@@ -387,15 +413,8 @@ public class NBTWrappers {
     public Object toNBT() {
       Object compound = NBT_TAG_COMPOUND_CONSTRUCTOR.createInstance().getOrThrow();
 
-      Class<?> nbtBase = ClassLookup.NMS.forName("NBTBase").getOrThrow().getUnderlying();
-
-      FluentMethod setterMethod = FluentType.ofUnknown(compound.getClass()).findMethod()
-          .withName("set")
-          .withParameters(String.class, nbtBase)
-          .findSingle().getOrThrow();
-
       for (Map.Entry<String, INBTBase> entry : map.entrySet()) {
-        setterMethod.invoke(compound, entry.getKey(), entry.getValue().toNBT())
+        SET_METHOD.invoke(compound, entry.getKey(), entry.getValue().toNBT())
             .ensureSuccessful();
       }
 
@@ -403,10 +422,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      Collection<String> keys = FluentType.ofUnknown(nbtObject.getClass()).findMethod()
-          .withModifiers(Modifier.PUBLIC)
-          .matchingMethod(method -> Set.class.isAssignableFrom(method.getReturnType()))
-          .findSingle().getOrThrow()
+      Collection<String> keys = GET_KEYSET_METHOD
           .invoke(nbtObject)
           .mapNotNull(it -> {
             @SuppressWarnings("unchecked")
@@ -417,14 +433,8 @@ public class NBTWrappers {
 
       NBTTagCompound compound = new NBTTagCompound();
 
-      FluentMethod getterMethod = FluentType.ofUnknown(nbtObject.getClass())
-          .findMethod()
-          .withName("get")
-          .withParameters(String.class)
-          .findSingle().getOrThrow();
-
       for (String key : keys) {
-        Object value = getterMethod.invoke(nbtObject, key).getOrThrow();
+        Object value = GET_METHOD.invoke(nbtObject, key).getOrThrow();
         INBTBase base = INBTBase.fromNBT(value);
         if (base != null) {
           compound.set(key, base);
@@ -463,24 +473,29 @@ public class NBTWrappers {
    * A NBTTagList.
    */
   public static class NBTTagList extends INBTBase {
+    private static final FluentType<?> NBT_TAG_LIST_CLASS = ClassLookup.NMS
+        .forName("NBTTagList").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_LIST_CONSTRUCTOR;
+    private static final FluentReflection.FluentField LIST_FIELD = NBT_TAG_LIST_CLASS.findField()
+        .withName("list")
+        .findSingle().getOrThrow();
+
+    private static final FluentType<?> NBT_BASE_CLASS = ClassLookup.NMS
+        .forName("NBTBase").getOrThrow();
+
+    private static final FluentConstructor<?> NBT_TAG_LIST_CONSTRUCTOR = NBT_TAG_LIST_CLASS.findConstructor()
+        .withParameters()
+        .findSingle().getOrThrow();
+
     private static final BiConsumer<List<INBTBase>, Object> appendAll;
 
     static {
-      FluentType<?> nbtTagListClass = ClassLookup.NMS.forName("NBTTagList").getOrThrow();
-
-      NBT_TAG_LIST_CONSTRUCTOR = nbtTagListClass.findConstructor()
-          .withParameters()
-          .findSingle().getOrThrow();
-
-      FluentType<?> nbtBase = ClassLookup.NMS.forName("NBTBase").getOrThrow();
-
       // Up to 1.14.4 it was "add(NBTBase)"
-      ReflectiveResult<FluentMethod> addSingleParam = nbtTagListClass.findMethod()
+      ReflectiveResult<FluentMethod> addSingleParam = NBT_TAG_LIST_CLASS.findMethod()
           .withName("add")
-          .withParameters(nbtBase.getUnderlying())
+          .withParameters(NBT_BASE_CLASS.getUnderlying())
           .findSingle();
+
       if (addSingleParam.isPresent()) {
         appendAll = (tags, nbtList) -> {
           for (INBTBase tag : tags) {
@@ -489,9 +504,9 @@ public class NBTWrappers {
         };
       } else {
         // In 1.14.4 it is "add(int index, NBTBase)"
-        FluentMethod addMultiParam = nbtTagListClass.findMethod()
+        FluentMethod addMultiParam = NBT_TAG_LIST_CLASS.findMethod()
             .withName("add")
-            .withParameters(int.class, nbtBase.getUnderlying())
+            .withParameters(int.class, NBT_BASE_CLASS.getUnderlying())
             .findSingle().getOrThrow();
 
         appendAll = (tags, nbtList) -> {
@@ -585,9 +600,7 @@ public class NBTWrappers {
     public static INBTBase fromNBT(Object nbtObject) {
       NBTTagList list = new NBTTagList();
 
-      Object originalList = FluentType.ofUnknown(nbtObject.getClass()).findField()
-          .withName("list")
-          .findSingle().getOrThrow()
+      Object originalList = LIST_FIELD
           .getValue(nbtObject).getOrThrow();
 
       List<?> savedList = (List<?>) originalList;
@@ -682,12 +695,16 @@ public class NBTWrappers {
    * A NBTTagDouble
    */
   public static class NBTTagDouble extends INBTNumber {
+    private static final FluentType<?> NBT_TAG_DOUBLE_CLASS = ClassLookup.NMS
+        .forName("NBTTagDouble").getOrThrow();
 
     private static final FluentConstructor<?> NBT_TAG_DOUBLE_CONSTRUCTOR = ClassLookup.NMS
         .forName("NBTTagDouble").getOrThrow()
         .findConstructor()
         .withParameters(double.class)
         .findSingle().getOrThrow();
+
+    private static final FluentMethod NUMBER_GET_METHOD = findNBTNumberGetMethod(NBT_TAG_DOUBLE_CLASS, double.class);
 
     private double value;
 
@@ -721,10 +738,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentType<?> doubleClass = ClassLookup.NMS.forName("NBTTagDouble").getOrThrow();
-      FluentMethod method = findNBTNumberGetMethod(doubleClass, double.class);
-
-      Object actualValue = method.invoke(nbtObject).getOrThrow();
+      Object actualValue = NUMBER_GET_METHOD.invoke(nbtObject).getOrThrow();
 
       Double value = (Double) actualValue;
       return value == null ? new NBTTagDouble(-1) : new NBTTagDouble(value);
@@ -759,12 +773,15 @@ public class NBTWrappers {
    * A NBTTagInt
    */
   public static class NBTTagInt extends INBTNumber {
+    private static final FluentType<?> NBT_TAG_INT_CLASS = ClassLookup.NMS
+            .forName("NBTTagInt").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_INT_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagInt").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_INT_CONSTRUCTOR = NBT_TAG_INT_CLASS
         .findConstructor()
         .withParameters(int.class)
         .findSingle().getOrThrow();
+
+    private static final FluentMethod NUMBER_GET_METHOD = findNBTNumberGetMethod(NBT_TAG_INT_CLASS, int.class);
 
     private int value;
 
@@ -803,8 +820,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentType<?> intClass = ClassLookup.NMS.forName("NBTTagInt").getOrThrow();
-      FluentMethod method = findNBTNumberGetMethod(intClass, int.class);
+      FluentMethod method = NUMBER_GET_METHOD;
 
       Object actualValue = method.invoke(nbtObject).getOrThrow();
 
@@ -842,12 +858,19 @@ public class NBTWrappers {
    * A NBTTagIntArray
    */
   public static class NBTTagIntArray extends INBTBase {
+    private static final FluentType<?> NBT_TAG_INT_ARRAY_CLASS = ClassLookup.NMS
+        .forName("NBTTagIntArray").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_INT_ARRAY_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagIntArray").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_INT_ARRAY_CONSTRUCTOR = NBT_TAG_INT_ARRAY_CLASS
         .findConstructor()
         .withParameters(int[].class)
         .findSingle().getOrThrow();
+
+    private static final FluentMethod GETTER_METHOD = NBT_TAG_INT_ARRAY_CLASS
+            .findMethod()
+            .withReturnType(int[].class)
+            .withoutModifiers(Modifier.STATIC)
+            .findSingle().getOrThrow();
 
     private int[] value;
 
@@ -875,13 +898,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentMethod getterMethod = FluentType.ofUnknown(nbtObject.getClass())
-          .findMethod()
-          .withReturnType(int[].class)
-          .withoutModifiers(Modifier.STATIC)
-          .findSingle().getOrThrow();
-
-      Object actualValue = getterMethod.invoke(nbtObject).getOrThrow();
+      Object actualValue = GETTER_METHOD.invoke(nbtObject).getOrThrow();
 
       return new NBTTagIntArray((int[]) actualValue);
     }
@@ -915,12 +932,15 @@ public class NBTWrappers {
    * A NBTTagByte
    */
   public static class NBTTagByte extends INBTNumber {
+    private static final FluentType<?> NBT_TAG_BYTE_CLASS = ClassLookup.NMS
+        .forName("NBTTagByte").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_BYTE_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagByte").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_BYTE_CONSTRUCTOR = NBT_TAG_BYTE_CLASS
         .findConstructor()
         .withParameters(byte.class)
         .findSingle().getOrThrow();
+
+    private static final FluentMethod NUMBER_GET_METHOD = findNBTNumberGetMethod(NBT_TAG_BYTE_CLASS, byte.class);
 
     private byte value;
 
@@ -954,10 +974,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentType<?> byteClass = ClassLookup.NMS.forName("NBTTagByte").getOrThrow();
-      FluentMethod method = findNBTNumberGetMethod(byteClass, byte.class);
-
-      Object actualValue = method.invoke(nbtObject).getOrThrow();
+      Object actualValue = NUMBER_GET_METHOD.invoke(nbtObject).getOrThrow();
 
       Byte value = (Byte) actualValue;
       return new NBTTagByte(value == null ? 0 : value);
@@ -992,11 +1009,17 @@ public class NBTWrappers {
    * A NBTTagByteArray
    */
   public static class NBTTagByteArray extends INBTBase {
+    private static final FluentType<?> NBT_TAG_BYTE_ARRAY_CLASS = ClassLookup.NMS
+        .forName("NBTTagByteArray").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_BYTE_ARRAY_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagByteArray").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_BYTE_ARRAY_CONSTRUCTOR = NBT_TAG_BYTE_ARRAY_CLASS
         .findConstructor()
         .withParameters(byte[].class)
+        .findSingle().getOrThrow();
+
+    private static final FluentMethod GETTER_METHOD = NBT_TAG_BYTE_ARRAY_CLASS.findMethod()
+        .withReturnType(byte[].class)
+        .withoutModifiers(Modifier.STATIC)
         .findSingle().getOrThrow();
 
     private byte[] value;
@@ -1025,12 +1048,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentMethod getterMethod = FluentType.ofUnknown(nbtObject.getClass()).findMethod()
-          .withReturnType(byte[].class)
-          .withoutModifiers(Modifier.STATIC)
-          .findSingle().getOrThrow();
-
-      Object actualValue = getterMethod.invoke(nbtObject).getOrThrow();
+      Object actualValue = GETTER_METHOD.invoke(nbtObject).getOrThrow();
 
       return new NBTTagByteArray((byte[]) actualValue);
     }
@@ -1064,12 +1082,15 @@ public class NBTWrappers {
    * A NBTTagShort
    */
   public static class NBTTagShort extends INBTNumber {
+    private static final FluentType<?> NBT_TAG_SHORT_CLASS = ClassLookup.NMS
+        .forName("NBTTagShort").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_SHORT_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagShort").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_SHORT_CONSTRUCTOR = NBT_TAG_SHORT_CLASS
         .findConstructor()
         .withParameters(short.class)
         .findSingle().getOrThrow();
+
+    private static final FluentMethod NUMBER_GET_METHOD = findNBTNumberGetMethod(NBT_TAG_SHORT_CLASS, short.class);
 
     private short value;
 
@@ -1103,10 +1124,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentType<?> shortClass = ClassLookup.NMS.forName("NBTTagShort").getOrThrow();
-      FluentMethod method = findNBTNumberGetMethod(shortClass, short.class);
-
-      Object actualValue = method.invoke(nbtObject).getOrThrow();
+      Object actualValue = NUMBER_GET_METHOD.invoke(nbtObject).getOrThrow();
 
       Short value = (Short) actualValue;
       return new NBTTagShort(value == null ? 0 : value);
@@ -1141,12 +1159,15 @@ public class NBTWrappers {
    * A NBTTagLong
    */
   public static class NBTTagLong extends INBTNumber {
+    private static final FluentType<?> NBT_TAG_LONG_CLASS = ClassLookup.NMS
+        .forName("NBTTagLong").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_LONG_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagLong").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_LONG_CONSTRUCTOR = NBT_TAG_LONG_CLASS
         .findConstructor()
         .withParameters(long.class)
         .findSingle().getOrThrow();
+
+    private static final FluentMethod NUMBER_GET_METHOD = findNBTNumberGetMethod(NBT_TAG_LONG_CLASS, long.class);
 
     private long value;
 
@@ -1185,11 +1206,7 @@ public class NBTWrappers {
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentType<?> longClass = ClassLookup.NMS.forName("NBTTagLong").getOrThrow();
-
-      FluentMethod method = findNBTNumberGetMethod(longClass, long.class);
-
-      Object actualValue = method.invoke(nbtObject).getOrThrow();
+      Object actualValue = NUMBER_GET_METHOD.invoke(nbtObject).getOrThrow();
 
       Long value = (Long) actualValue;
       return new NBTTagLong(value == null ? 0 : value);
@@ -1224,12 +1241,15 @@ public class NBTWrappers {
    * A NBTTagFloat
    */
   public static class NBTTagFloat extends INBTNumber {
+    private static final FluentType<?> NBT_TAG_FLOAT_CLASS = ClassLookup.NMS
+        .forName("NBTTagFloat").getOrThrow();
 
-    private static final FluentConstructor<?> NBT_TAG_LONG_CONSTRUCTOR = ClassLookup.NMS
-        .forName("NBTTagFloat").getOrThrow()
+    private static final FluentConstructor<?> NBT_TAG_FLOAT_CONSTRUCTOR = NBT_TAG_FLOAT_CLASS
         .findConstructor()
         .withParameters(float.class)
         .findSingle().getOrThrow();
+
+    private static final FluentMethod NUMBER_GET_METHOD = findNBTNumberGetMethod(NBT_TAG_FLOAT_CLASS, float.class);
 
     private float value;
 
@@ -1259,15 +1279,11 @@ public class NBTWrappers {
 
     @Override
     public Object toNBT() {
-      return NBT_TAG_LONG_CONSTRUCTOR.createInstance(getAsFloat()).getOrThrow();
+      return NBT_TAG_FLOAT_CONSTRUCTOR.createInstance(getAsFloat()).getOrThrow();
     }
 
     public static INBTBase fromNBT(Object nbtObject) {
-      FluentType<?> floatClass = ClassLookup.NMS.forName("NBTTagFloat").getOrThrow();
-
-      FluentMethod method = findNBTNumberGetMethod(floatClass, float.class);
-
-      Object actualValue = method.invoke(nbtObject).getOrThrow();
+      Object actualValue = NUMBER_GET_METHOD.invoke(nbtObject).getOrThrow();
 
       Float value = (Float) actualValue;
       return new NBTTagFloat(value == null ? 0 : value);
