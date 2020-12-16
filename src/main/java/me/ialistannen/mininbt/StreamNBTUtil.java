@@ -17,7 +17,7 @@ public class StreamNBTUtil {
       .findMethod()
       .withParameters(InputStream.class)
       .withReturnType(NBTTagCompound.NBT_TAG_COMPOUND_CLASS.getUnderlying())
-      .findSingle()
+      .findFirst()
       .getOrThrow();
 
   private static final FluentReflection.FluentMethod WRITE_STREAM = NBT_COMPRESSED_STREAM_TOOLS
@@ -26,13 +26,13 @@ public class StreamNBTUtil {
           NBTTagCompound.NBT_TAG_COMPOUND_CLASS.getUnderlying(),
           OutputStream.class
       )
-      .findSingle()
+      .findFirst()
       .getOrThrow();
 
   // thrown by the underlying reflected method
   @SuppressWarnings("RedundantThrows")
   public static NBTTagCompound fromStream(InputStream inputStream) throws IOException {
-    Object nbtObject = FROM_STREAM.invokeStatic(inputStream);
+    Object nbtObject = FROM_STREAM.invokeStatic(inputStream).getOrThrow();
 
     return (NBTTagCompound) NBTTagCompound.fromNBT(nbtObject);
   }
@@ -40,6 +40,6 @@ public class StreamNBTUtil {
   // thrown by the underlying reflected method
   @SuppressWarnings("RedundantThrows")
   public static void writeToStream(NBTTagCompound compound, OutputStream outputStream) throws IOException {
-    Object nbtObject = FROM_STREAM.invokeStatic(compound.toNBT(), outputStream);
+    WRITE_STREAM.invokeStatic(compound.toNBT(), outputStream);
   }
 }

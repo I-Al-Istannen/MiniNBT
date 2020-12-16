@@ -6,7 +6,7 @@
 
     <groupId>me.ialistannen</groupId>
     <artifactId>MiniNBT</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.4-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>MiniNBT</name>
