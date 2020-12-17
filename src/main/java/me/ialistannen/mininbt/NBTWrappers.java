@@ -168,7 +168,7 @@ public class NBTWrappers {
     private static final FluentType<?> NBT_BASE = ClassLookup.NMS
         .forName("NBTBase").getOrThrow();
 
-    private static final FluentType<?> NBT_TAG_COMPOUND_CLASS = ClassLookup.NMS
+    public static final FluentType<?> NBT_TAG_COMPOUND_CLASS = ClassLookup.NMS
         .forName("NBTTagCompound").getOrThrow();
 
     private static final FluentConstructor<?> NBT_TAG_COMPOUND_CONSTRUCTOR = NBT_TAG_COMPOUND_CLASS
